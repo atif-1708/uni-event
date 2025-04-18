@@ -23,12 +23,16 @@ def load_user(user_id):
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
+    full_name = db.Column(db.String(100), nullable=True)  # New field for full name
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='student')  # 'admin' or 'student'
-    department = db.Column(db.String(100), nullable=True)  # Add this line
+    role = db.Column(db.String(20), nullable=False, default='student')  
+    student_id = db.Column(db.String(100), nullable=True)  # New field for student ID
+    profile_image = db.Column(db.String(200), nullable=True)  # New field for profile picture URL
+    department = db.Column(db.String(100), nullable=True)  # Department
+    bio = db.Column(db.String(500), nullable=True)  # Optional bio field
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     registrations = db.relationship('Registration', backref='user', lazy=True)
 
     def set_password(self, password):
@@ -40,8 +44,12 @@ class User(db.Model, UserMixin):
     def is_admin(self):
         return self.role == 'admin'
 
+   
+
     def __repr__(self):
         return f"User('{self.username}', '{self.email}', '{self.role}')"
+
+
 
 class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)

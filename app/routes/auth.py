@@ -43,7 +43,7 @@ class RegistrationForm(FlaskForm):
     def validate_role(self, role):
         if role.data == 'admin':
             admin_code = self.admin_code.data
-            if admin_code != '12345':  # You can replace this with logic to check the actual passcode
+            if admin_code != '1708':  # You can replace this with logic to check the actual passcode
                 raise ValidationError('Invalid admin registration code')
 
 
