@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h2 class="card-title mb-0">Event Details</h2>
+            </div>
+            <div class="card-body">
+                <div class="event-details">
+                    <h1 class="mb-3">{{ event.title }}</h1>
+
+                    <div class="event-meta mb-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-2">
+                                    <i class="fas fa-calendar-alt me-2 text-primary"></i>
+                                    <strong>Start:</strong> {{ event.date.strftime('%B %d, %Y at %I:%M %p') }}
+                                </p>
+                                {% if event.end_date %}
+                                <p class="mb-2">
+                                    <i class="fas fa-calendar-check me-2 text-primary"></i>
+                                    <strong>End:</strong> {{ event.end_date.strftime('%B %d, %Y at %I:%M %p') }}
+                                </p>
+                                {% endif %}
+                                <p class="mb-2">
+                                    <i class="fas fa-hourglass-half me-2 text-primary"></i>
+                                    <strong>Registration Deadline:</strong>
+                                    {{ event.registration_deadline.strftime('%B %d, %Y %I:%M %p') if event.registration_deadline else 'N/A' }}
+                                </p>
+                                <p class="mb-2">
+                                    <i class="fas fa-map-marker-alt me-2 text-primary"></i>
+                                    <strong>Location:</strong> {{ event.location }}
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-2">
+                                    <i class="fas fa-users me-2 text-primary"></i>
+                                    <strong>Capacity:</strong> 
+                                    <span class="badge rounded-pill {% if event.is_full %}bg-danger{% else %}bg-success{% endif %}">
+                                        {{ registration_count }}/{{ event.max_participants }} registered
+                                    </span>
+                                </p>
+                                <p class="text-muted">
+                                    <small>{{ registration_count }} out of {{ event.max_participants }} spots filled</small>
+                                </p>
+
+                                {% if event.has_ended %}
+                                    <div class="alert alert-secondary">
+                                        <i class="fas fa-clock me-2"></i>This event has ended.
+                                    </div>
+                                {% elif event.registration_closed %}
+                                    <div class="alert alert-danger">
+                                        <i class="fas fa-ban me-2"></i>Registrations are closed. The deadline has passed.
+                                    </div>
+                                {% elif is_registered %}
+                                    <div class="alert alert-success">
+                                        <i class="fas fa-check-circle me-2"></i>You are registered for this event!
+                                    </div>
+                                {% elif event.is_full %}
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>This event is full.
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="event-description mb-4">
+                        <h4 class="mb-3">About This Event</h4>
+                        <div class="bg-light p-3 rounded">
+                            {{ event.description|safe }}
+                        </div>
+                    </div>
+
+                   
+
+                    <div class="event-actions">
+                        {% if not event.registration_closed and not event.has_ended and not is_registered and not event.is_full %}
+                            <form action="{{ url_for('student.register_for_event', event_id=event.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-user-plus me-1"></i>Register for Event
+                                </button>
+                            </form>
+                        {% elif is_registered %}
+                            <form action="{{ url_for('student.cancel_registration', registration_id=registration.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel your registration?')">
+                                    <i class="fas fa-times me-1"></i>Cancel Registration
+                                </button>
+                            </form>
+                        {% else %}
+                            <!-- Show a disabled button with a reason when registration is not possible -->
+                            <button type="button" class="btn btn-secondary" disabled>
+                                <i class="fas fa-ban me-1"></i>
+                                {% if event.registration_closed %}
+                                    Registration Closed
+                                {% elif event.has_ended %}
+                                    Event Ended
+                                {% elif event.is_full %}
+                                    Event Full
+                                {% else %}
+                                    Registration Unavailable
+                                {% endif %}
+                            </button>
+                        {% endif %}
+
+                        <a href="{{ url_for('student.events') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Events
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

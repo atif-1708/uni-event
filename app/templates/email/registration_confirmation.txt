@@ -1,0 +1,18 @@
+EVENT REGISTRATION CONFIRMATION
+
+Hello {{ user.username }},
+
+Thank you for registering for the following event:
+
+EVENT: {{ event.title }}
+DATE: {{ event.date.strftime('%B %d, %Y at %I:%M %p') }}
+LOCATION: {{ event.location }}
+
+You have successfully secured your spot. Please arrive at least 15 minutes before the event starts.
+
+If you need to cancel your registration, you can do so from your dashboard on the University Event System website:
+{{ url_for('student.dashboard', _external=True) }}
+
+---------------------------
+This is an automated message. Please do not reply to this email.
+© {{ event.date.year }} University Event System. All rights reserved.

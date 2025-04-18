@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-3 d-flex justify-content-between align-items-center">
+        <h2 class="mb-0">Event Reports</h2>
+        <a href="{{ url_for('admin.export_report_csv') }}" class="btn btn-outline-primary">
+            <i class="fas fa-download me-1"></i> Export CSV
+        </a>
+    </div>
+</div>
+{% if top_events %}
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-success text-white">
+        <strong><i class="fas fa-trophy me-1"></i> Top 3 Most Registered Events</strong>
+    </div>
+    <div class="card-body">
+        <ol class="list-group list-group-numbered">
+            {% for event in top_events %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ event.title }}</strong>
+                    <br>
+                    <small class="text-muted">{{ event.date.strftime('%b %d, %Y') }} | {{ event.location }}</small>
+                </div>
+                <span class="badge bg-primary rounded-pill">{{ event.registration_count }}</span>
+            </li>
+            {% endfor %}
+        </ol>
+    </div>
+</div>
+{% endif %}
+
+{% if events %}
+
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <strong>Event Table</strong>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Title</th>
+                        <th>Date</th>
+                        <th>Location</th>
+                        <th>Registered</th>
+                        <th>Capacity</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ event.title }}</td>
+                        <td>{{ event.date.strftime('%b %d, %Y at %I:%M %p') }}</td>
+                        <td>{{ event.location }}</td>
+                        <td>
+                            <span class="badge rounded-pill 
+                                {% if event.is_full %}bg-danger
+                                {% elif event.registration_count > event.max_participants * 0.8 %}bg-warning text-dark
+                                {% else %}bg-success
+                                {% endif %}">
+                                {{ event.registration_count }}
+                            </span>
+                        </td>
+                        <td>{{ event.max_participants }}</td>
+                        <td>
+                            {% if event.is_full %}
+                                <span class="badge bg-danger">Full</span>
+                            {% elif event.registration_count >= (event.max_participants * 0.75) %}
+                                <span class="badge bg-warning text-dark">Almost Full</span>
+                            {% else %}
+                                <span class="badge bg-success">Available</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>No events available to generate report.
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h2 class="card-title mb-0">Edit Event</h2>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.edit_event', event_id=event.id) }}">
+                    {{ form.hidden_tag() }}
+
+                    <!-- Title -->
+                    <div class="mb-3">
+                        {{ form.title.label(class="form-label") }}
+                        {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
+                        {% for error in form.title.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows=5) }}
+                        {% for error in form.description.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">Provide a detailed description of the event.</div>
+                    </div>
+
+                    <!-- Date & End Date -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.date.label(class="form-label") }}
+                            {{ form.date(class="form-control" + (" is-invalid" if form.date.errors else ""), id="event-date", type="datetime-local") }}
+                            {% for error in form.date.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.end_date.label(class="form-label") }}
+                            {{ form.end_date(class="form-control" + (" is-invalid" if form.end_date.errors else ""), id="event-end-date", type="datetime-local") }}
+                            {% for error in form.end_date.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">Event end date & time.</div>
+                        </div>
+                    </div>
+
+                    <!-- Registration Deadline -->
+                    <div class="mb-3">
+                        {{ form.registration_deadline.label(class="form-label") }}
+                        {{ form.registration_deadline(class="form-control" + (" is-invalid" if form.registration_deadline.errors else ""), id="registration-deadline", type="datetime-local") }}
+                        {% for error in form.registration_deadline.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">Deadline for students to register for this event.</div>
+                    </div>
+
+                    <!-- Location -->
+                    <div class="mb-3">
+                        {{ form.location.label(class="form-label") }}
+                        {{ form.location(class="form-control" + (" is-invalid" if form.location.errors else "")) }}
+                        {% for error in form.location.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Max Participants -->
+                    <div class="mb-3">
+                        {{ form.max_participants.label(class="form-label") }}
+                        {{ form.max_participants(class="form-control" + (" is-invalid" if form.max_participants.errors else ""), type="number", min="1") }}
+                        {% for error in form.max_participants.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">
+                            Maximum participants allowed.
+                            {% if event.registration_count > 0 %}
+                                <span class="text-danger ms-2">Currently registered: {{ event.registration_count }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <a href="{{ url_for('admin.events') }}" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteEventModal">
+                                Delete Event
+                            </button>
+                        </div>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteEventModal" tabindex="-1" aria-labelledby="deleteEventModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteEventModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this event? This will remove all registrations as well.</p>
+                <p class="fw-bold">{{ event.title }}</p>
+                <p class="text-muted">{{ event.date.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                {% if event.registration_count > 0 %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        This event has {{ event.registration_count }} registrations.
+                    </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <form method="POST" action="{{ url_for('admin.delete_event', event_id=event.id) }}">
+                    <button type="submit" class="btn btn-danger">Delete Event</button>
+                </form>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    flatpickr('#event-date', {
+        enableTime: true,
+        dateFormat: "Y-m-d\\TH:i",
+        time_24hr: true
+    });
+    flatpickr('#event-end-date', {
+        enableTime: true,
+        dateFormat: "Y-m-d\\TH:i",
+        time_24hr: true
+    });
+    flatpickr('#registration-deadline', {
+        enableTime: true,
+        dateFormat: "Y-m-d\\TH:i",
+        time_24hr: true
+    });
+</script>
+{% endblock %}

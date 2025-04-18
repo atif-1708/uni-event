@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h2 class="card-title mb-0">Browse Events</h2>
+            </div>
+            <div class="card-body">
+                <div class="event-filters mb-4">
+                    <form id="filter-form" class="row g-3">
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                                <input type="date" class="form-control" id="date-from" name="date_from" placeholder="From" value="{{ request.args.get('date_from', '') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                                <input type="date" class="form-control" id="date-to" name="date_to" placeholder="To" value="{{ request.args.get('date_to', '') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary me-2">Filter</button>
+                            <a href="{{ url_for('student.events') }}" class="btn btn-outline-secondary">Reset</a>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="row" id="events-container">
+                    {% if events.items %}
+                        {% for event in events.items %}
+                            <div class="col-md-4 mb-4">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ event.title }}</h5>
+                                        <div class="mb-3">
+                                            <span class="badge rounded-pill {% if event.is_full %}bg-danger{% else %}bg-success{% endif %}">{{ event.registration_count }}/{{ event.max_participants }} registered</span>
+                                            <span class="badge rounded-pill bg-primary">{{ event.date.strftime('%b %d, %Y') }}</span>
+                                            {% if event.end_date %}
+                                                <span class="badge rounded-pill bg-secondary">Ends: {{ event.end_date.strftime('%b %d, %Y') }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <p class="card-text text-muted small mb-2">
+                                            <i class="fas fa-clock me-1"></i>{{ event.date.strftime('%I:%M %p') }}
+                                            {% if event.end_date %}
+                                                - {{ event.end_date.strftime('%I:%M %p') }}
+                                            {% endif %}
+                                        </p>
+                                        <p class="card-text text-muted small mb-1">
+                                            <i class="fas fa-hourglass-start me-1"></i> Registration Deadline: {{ event.registration_deadline.strftime('%b %d, %Y %I:%M %p') if event.registration_deadline else 'N/A' }}
+                                        </p>
+                                        <p class="card-text text-muted small mb-3"><i class="fas fa-map-marker-alt me-1"></i> {{ event.location }}</p>
+                                        <p class="card-text">{{ event.description[:100] }}{% if event.description|length > 100 %}...{% endif %}</p>
+                                    </div>
+                                    <div class="card-footer bg-white border-0">
+                                        <a href="{{ url_for('student.event_details', event_id=event.id) }}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-info-circle me-1"></i>View Details
+                                        </a>
+
+                                        {% if event.has_ended %}
+                                            <span class="badge rounded-pill bg-secondary ms-2">Ended</span>
+                                        {% elif event.registration_closed %}
+                                            <span class="badge rounded-pill bg-danger ms-2">Registration Closed</span>
+                                        {% elif event.is_full %}
+                                            <span class="badge rounded-pill bg-danger ms-2">Full</span>
+                                        {% else %}
+                                            <span class="badge rounded-pill bg-info ms-2">Open</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-12">
+                            <div class="alert alert-info text-center">
+                                <i class="fas fa-info-circle me-2"></i>No upcoming events found matching your criteria.
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                {% if events.items and events.pages > 1 %}
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if events.has_prev %}
+                                <li class="page-item"><a class="page-link" href="{{ url_for('student.events', page=events.prev_num) }}">Previous</a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                            {% endif %}
+
+                            {% for num in events.iter_pages(left_edge=1, right_edge=1) %}
+                                <li class="page-item{% if num == events.page %} active{% endif %}">
+                                    <a class="page-link" href="{{ url_for('student.events', page=num) }}">{{ num }}</a>
+                                </li>
+                            {% endfor %}
+
+                            {% if events.has_next %}
+                                <li class="page-item"><a class="page-link" href="{{ url_for('student.events', page=events.next_num) }}">Next</a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Next</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

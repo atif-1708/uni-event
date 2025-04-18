@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h2 class="card-title mb-0">New Event Registrations</h2>
+                <div>
+                    <a href="{{ url_for('admin.new_registrations', mark_viewed='true') }}" class="btn btn-light btn-sm">
+                        <i class="fas fa-check-double me-1"></i>Mark All as Viewed
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Stats Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card bg-info text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="card-title">New Registrations</h6>
+                                        <h2 class="mb-0">{{ new_count }}</h2>
+                                    </div>
+                                    <i class="fas fa-calendar-check fa-3x opacity-50"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Registrations Table -->
+                {% if registrations.items %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Event</th>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Registered On</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for registration in registrations.items %}
+                                    <tr class="table-warning">
+                                        <td>{{ registration.id }}</td>
+                                        <td>
+                                            <a href="{{ url_for('admin.event_registrations', event_id=registration.event.id) }}">
+                                                {{ registration.event.title }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <img src="{{ url_for('static', filename='profile_pics/' + (registration.user.profile_image or 'default.jpg')) }}" 
+                                                 alt="{{ registration.user.username }}" 
+                                                 class="rounded-circle me-2"
+                                                 style="width: 30px; height: 30px; object-fit: cover;">
+                                            <a href="{{ url_for('admin.user_details', user_id=registration.user.id) }}">
+                                                {{ registration.user.username }}
+                                            </a>
+                                        </td>
+                                        <td>{{ registration.user.email }}</td>
+                                        <td>{{ registration.registered_at.strftime('%b %d, %Y %H:%M') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('admin.event_registrations', event_id=registration.event.id) }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-list me-1"></i>View Event Registrations
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if registrations.pages > 1 %}
+                        <nav aria-label="Page navigation" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if registrations.has_prev %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('admin.new_registrations', page=registrations.prev_num) }}">
+                                           Previous
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <a class="page-link" href="#" tabindex="-1">Previous</a>
+                                    </li>
+                                {% endif %}
+
+                                {% for num in registrations.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                                    {% if num %}
+                                        {% if num == registrations.page %}
+                                            <li class="page-item active">
+                                                <a class="page-link" href="#">{{ num }}</a>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="{{ url_for('admin.new_registrations', page=num) }}">
+                                                   {{ num }}
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <a class="page-link" href="#">...</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if registrations.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('admin.new_registrations', page=registrations.next_num) }}">
+                                           Next
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <a class="page-link" href="#" tabindex="-1">Next</a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle me-2"></i>No new event registrations found.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

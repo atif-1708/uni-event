@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h2 class="card-title mb-0">Create New Event</h2>
+            </div>
+            
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.create_event') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.title.label(class="form-label") }}
+                        {% if form.title.errors %}
+                            {{ form.title(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.title.errors %}
+                                    <span>{{ error }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.title(class="form-control") }}
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {% if form.description.errors %}
+                            {{ form.description(class="form-control is-invalid", rows=5) }}
+                            <div class="invalid-feedback">
+                                {% for error in form.description.errors %}
+                                    <span>{{ error }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.description(class="form-control", rows=5) }}
+                        {% endif %}
+                        <div class="form-text">Provide a detailed description of the event.</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.date.label(class="form-label") }}
+                                {% if form.date.errors %}
+                                    {{ form.date(class="form-control is-invalid", id="event-date", type="datetime-local") }}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.date.errors %}
+                                            <span>{{ error }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    {{ form.date(class="form-control", id="event-date", type="datetime-local") }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.end_date.label(class="form-label") }}
+                                {% if form.end_date.errors %}
+                                    {{ form.end_date(class="form-control is-invalid", id="event-end-date", type="datetime-local") }}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.end_date.errors %}
+                                            <span>{{ error }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    {{ form.end_date(class="form-control", id="event-end-date", type="datetime-local") }}
+                                {% endif %}
+                                <div class="form-text">Event end date & time.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.registration_deadline.label(class="form-label") }}
+                        {% if form.registration_deadline.errors %}
+                            {{ form.registration_deadline(class="form-control is-invalid", id="registration-deadline", type="datetime-local") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.registration_deadline.errors %}
+                                    <span>{{ error }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.registration_deadline(class="form-control", id="registration-deadline", type="datetime-local") }}
+                        {% endif %}
+                        <div class="form-text">Deadline for registration (before event ends).</div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.location.label(class="form-label") }}
+                        {% if form.location.errors %}
+                            {{ form.location(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.location.errors %}
+                                    <span>{{ error }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.location(class="form-control") }}
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.max_participants.label(class="form-label") }}
+                        {% if form.max_participants.errors %}
+                            {{ form.max_participants(class="form-control is-invalid", type="number", min="1") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.max_participants.errors %}
+                                    <span>{{ error }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.max_participants(class="form-control", type="number", min="1") }}
+                        {% endif %}
+                        <div class="form-text">Maximum number of participants allowed.</div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('admin.events') }}" class="btn btn-outline-secondary">Cancel</a>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        flatpickr('#event-date', {
+            enableTime: true,
+            dateFormat: "Y-m-d\\TH:i",
+            minDate: "today",
+            time_24hr: true
+        });
+        flatpickr('#event-end-date', {
+            enableTime: true,
+            dateFormat: "Y-m-d\\TH:i",
+            minDate: "today",
+            time_24hr: true
+        });
+        flatpickr('#registration-deadline', {
+            enableTime: true,
+            dateFormat: "Y-m-d\\TH:i",
+            minDate: "today",
+            time_24hr: true
+        });
+    });
+</script>
+{% endblock %}

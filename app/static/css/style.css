@@ -1,0 +1,174 @@
+/* Custom styling for University Event System */
+
+/* Global Styles */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar-brand {
+    font-weight: 600;
+}
+
+/* Cards */
+.card {
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card.shadow-sm:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.card-header {
+    border-bottom: none;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 0.25rem;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+/* Form Controls */
+.form-control, .form-select {
+    border-radius: 0.25rem;
+}
+
+/* Event Cards */
+.event-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.event-card .card-footer {
+    margin-top: auto;
+}
+
+/* Admin Dashboard */
+.admin-stat-card {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+/* Footer */
+footer {
+    margin-top: 2rem;
+}
+
+/* Event Filters */
+.event-filters {
+    margin-bottom: 1.5rem;
+}
+
+/* Registration Badge */
+.registration-badge {
+    font-size: 0.85rem;
+}
+
+/* Admin Actions */
+.admin-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .event-filters {
+        flex-direction: column;
+    }
+    
+    .event-filters .form-group {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Date picker customization */
+.flatpickr-calendar {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border-radius: 0.5rem;
+}
+
+/* Event status indicators */
+.event-status-open {
+    background-color: #28a745;
+}
+
+.event-status-filling {
+    background-color: #ffc107;
+}
+
+.event-status-full {
+    background-color: #dc3545;
+}
+
+/* Dashboard cards */
+.dashboard-card {
+    border-radius: 0.5rem;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-card .card-icon {
+    font-size: 2rem;
+    margin-right: 1rem;
+}
+
+/* Login and Registration forms */
+.auth-form-container {
+    max-width: 500px;
+    margin: 2rem auto;
+}
+
+/* Progress bar animation */
+.progress-bar {
+    transition: width 0.5s ease;
+}
+
+/* Tooltip customization */
+.tooltip {
+    font-size: 0.85rem;
+}
+
+/* Event details page */
+.event-detail-header {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.event-description {
+    line-height: 1.6;
+}
+
+/* Pagination styling */
+.pagination .page-link {
+    border-radius: 0.25rem;
+    margin: 0 0.2rem;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

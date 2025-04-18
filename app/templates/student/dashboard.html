@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h2 class="card-title mb-0">My Dashboard</h2>
+            </div>
+            <div class="card-body">
+                <h3 class="mb-4">Welcome, {{ current_user.username }}!</h3>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h4 class="card-title">My Events</h4>
+                                    <span class="badge rounded-pill bg-primary">{{ registered_events|length }}</span>
+                                </div>
+                                <p class="card-text">Events you have registered for.</p>
+                                <a href="{{ url_for('student.events') }}" class="btn btn-primary">
+                                    <i class="fas fa-search me-1"></i>Find More Events
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h3 class="card-title mb-0">My Registered Events</h3>
+            </div>
+            <div class="card-body">
+                {% if registered_events %}
+                    <div class="list-group">
+                        {% for item in registered_events %}
+                            <div class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">{{ item.event.title }}</h5>
+                                    <small class="text-muted">
+                                        Registered on {{ item.registered_at.strftime('%b %d, %Y') }}
+                                    </small>
+                                </div>
+                                <p class="mb-1 text-muted">
+                                    <i class="fas fa-calendar-alt me-1"></i>
+                                    {{ item.event.date.strftime('%B %d, %Y at %I:%M %p') }}
+                                </p>
+                                <p class="mb-1 text-muted">
+                                    <i class="fas fa-map-marker-alt me-1"></i>
+                                    {{ item.event.location }}
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <div>
+                                        <span class="badge rounded-pill {% if item.attended %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {% if item.attended %}Attended{% else %}Not Yet Attended{% endif %}
+                                        </span>
+                                        
+                                        {% if item.event.date > now %}
+                                            <span class="badge rounded-pill bg-info">Upcoming</span>
+                                        {% elif item.event.date < now %}
+                                            <span class="badge rounded-pill bg-secondary">Past Event</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('student.event_pass', registration_id=item.registration_id) }}" class="btn btn-sm btn-outline-success">
+                                            <i class="fas fa-ticket-alt me-1"></i>View Pass
+                                        </a>
+                                        
+                                        <a href="{{ url_for('student.event_details', event_id=item.event.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-info-circle me-1"></i>Details
+                                        </a>
+                                        
+                                        {% if item.event.date > now %}
+                                            <form action="{{ url_for('student.cancel_registration', registration_id=item.registration_id) }}" method="POST">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to cancel your registration?')">
+                                                    <i class="fas fa-times me-1"></i>Cancel
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>You haven't registered for any events yet.
+                    </div>
+                    <a href="{{ url_for('student.events') }}" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>Browse Available Events
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h3 class="card-title mb-0">Upcoming Events</h3>
+            </div>
+            <div class="card-body">
+                {% if available_events %}
+                    <div class="list-group">
+                        {% for event in available_events %}
+                            <a href="{{ url_for('student.event_details', event_id=event.id) }}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">{{ event.title }}</h5>
+                                    <small>
+                                        <span class="badge rounded-pill {% if event.is_full %}bg-danger{% else %}bg-success{% endif %}">
+                                            {{ event.registration_count }}/{{ event.max_participants }}
+                                        </span>
+                                    </small>
+                                </div>
+                                <p class="mb-1 text-muted small">
+                                    <i class="fas fa-calendar-alt me-1"></i>
+                                    {{ event.date.strftime('%b %d, %Y') }}
+                                </p>
+                                <p class="mb-0 text-muted small">
+                                    <i class="fas fa-map-marker-alt me-1"></i>
+                                    {{ event.location }}
+                                </p>
+                            </a>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mt-3">
+                        <a href="{{ url_for('student.events') }}" class="btn btn-outline-primary btn-sm w-100">
+                            View All Events
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>No upcoming events available.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h3 class="card-title mb-0">Quick Links</h3>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="{{ url_for('student.events') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-calendar-alt me-2"></i>Browse All Events
+                    </a>
+                    <a href="{{ url_for('auth.profile') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-user me-2"></i>My Profile
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action">
+                        <i class="fas fa-bell me-2"></i>Notifications
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

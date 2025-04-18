@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="bg-primary text-white p-4 rounded-3 shadow">
+            <div class="container">
+                <h1 class="display-4">Welcome to University Events</h1>
+                <p class="lead">Browse and register for upcoming university events all in one place.</p>
+                {% if not current_user.is_authenticated %}
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg mt-2">
+                        <i class="fas fa-user-plus me-2"></i>Sign Up Now
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('student.events' if not current_user.is_admin() else 'admin.events') }}" class="btn btn-light btn-lg mt-2">
+                        <i class="fas fa-calendar-alt me-2"></i>Browse Events
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 class="card-title mb-0">Upcoming Events</h2>
+                    <form id="filter-form" class="d-flex gap-2">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                            <input type="date" class="form-control" id="date-from" name="date_from" value="{{ request.args.get('date_from', '') }}">
+                        </div>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                            <input type="date" class="form-control" id="date-to" name="date_to" value="{{ request.args.get('date_to', '') }}">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                        <a href="{{ url_for('main.home') }}" class="btn btn-outline-secondary">Reset</a>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row" id="events-container">
+                    {% if events.items %}
+                        {% for event in events.items %}
+                            <div class="col-md-4 mb-4">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ event.title }}</h5>
+                                        <div class="mb-2">
+                                            <span class="badge rounded-pill {% if event.is_full %}bg-danger{% else %}bg-success{% endif %}">
+                                                {{ event.registration_count }}/{{ event.max_participants }} registered
+                                            </span>
+                                            <span class="badge rounded-pill bg-primary">
+                                                {{ event.date.strftime('%b %d, %Y') }}
+                                            </span>
+                                        </div>
+                                        <p class="card-text text-muted small mb-1">
+                                            <i class="fas fa-clock me-1"></i> {{ event.date.strftime('%I:%M %p') }}
+                                        </p>
+                                        <p class="card-text text-muted small mb-1">
+                                            <i class="fas fa-hourglass-end me-1"></i> Ends:
+                                            {{ event.end_date.strftime('%b %d, %Y %I:%M %p') if event.end_date else 'N/A' }}
+                                        </p>
+                                        <p class="card-text text-muted small mb-1">
+                                            <i class="fas fa-hourglass-start me-1"></i>
+                                            Registration Deadline: 
+                                            {{ event.registration_deadline.strftime('%b %d, %Y %I:%M %p') if event.registration_deadline else 'N/A' }}
+                                        </p>
+                                        <p class="card-text text-muted small mb-2">
+                                            <i class="fas fa-map-marker-alt me-1"></i> {{ event.location }}
+                                        </p>
+                                        <p class="card-text">{{ event.description[:100] }}{% if event.description|length > 100 %}...{% endif %}</p>
+                                    </div>
+                                    <div class="card-footer bg-white border-0">
+                                        {% if current_user.is_authenticated %}
+                                            {% if current_user.is_admin() %}
+                                                <a href="{{ url_for('admin.edit_event', event_id=event.id) }}" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-edit me-1"></i>Edit
+                                                </a>
+                                                <a href="{{ url_for('admin.event_registrations', event_id=event.id) }}" class="btn btn-sm btn-info text-white">
+                                                    <i class="fas fa-users me-1"></i>Registrations
+                                                </a>
+                                            {% else %}
+                                                <a href="{{ url_for('student.event_details', event_id=event.id) }}" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-info-circle me-1"></i>Details
+                                                </a>
+                                            {% endif %}
+                                        {% else %}
+                                            <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-sign-in-alt me-1"></i>Login to Register
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-12">
+                            <div class="alert alert-info text-center">
+                                <i class="fas fa-info-circle me-2"></i>No upcoming events found.
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                {% if events.items and events.pages > 1 %}
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if events.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.home', page=events.prev_num, date_from=request.args.get('date_from', ''), date_to=request.args.get('date_to', '')) }}">Previous</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                        {% endif %}
+                        {% for num in events.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                            {% if num %}
+                                {% if num == events.page %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('main.home', page=num, date_from=request.args.get('date_from', ''), date_to=request.args.get('date_to', '')) }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                            {% endif %}
+                        {% endfor %}
+                        {% if events.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.home', page=events.next_num, date_from=request.args.get('date_from', ''), date_to=request.args.get('date_to', '')) }}">Next</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">Next</span></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="row">
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100 text-center">
+            <div class="card-body">
+                <i class="fas fa-calendar-check fa-3x text-primary mb-3"></i>
+                <h4>Find Events</h4>
+                <p class="text-muted">Explore seminars, workshops, and other campus events easily.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100 text-center">
+            <div class="card-body">
+                <i class="fas fa-user-plus fa-3x text-primary mb-3"></i>
+                <h4>Register Online</h4>
+                <p class="text-muted">Join events in a click. No lines, no forms, just register online.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100 text-center">
+            <div class="card-body">
+                <i class="fas fa-bell fa-3x text-primary mb-3"></i>
+                <h4>Get Notifications</h4>
+                <p class="text-muted">Receive email confirmations and timely reminders for events.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    flatpickr('#date-from', {
+        altInput: true,
+        altFormat: "F j, Y",
+        dateFormat: "Y-m-d",
+    });
+    flatpickr('#date-to', {
+        altInput: true,
+        altFormat: "F j, Y",
+        dateFormat: "Y-m-d",
+    });
+</script>
+{% endblock %}

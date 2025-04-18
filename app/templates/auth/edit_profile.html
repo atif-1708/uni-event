@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Edit Profile</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.username.label(class="form-label") }}
+                                    {% if form.username.errors %}
+                                        {{ form.username(class="form-control is-invalid") }}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.username.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        {{ form.username(class="form-control") }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.email.label(class="form-label") }}
+                                    {% if form.email.errors %}
+                                        {{ form.email(class="form-control is-invalid") }}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.email.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        {{ form.email(class="form-control") }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            {{ form.full_name.label(class="form-label") }}
+                            {% if form.full_name.errors %}
+                                {{ form.full_name(class="form-control is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.full_name.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.full_name(class="form-control") }}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.department.label(class="form-label") }}
+                                    {% if form.department.errors %}
+                                        {{ form.department(class="form-control is-invalid") }}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.department.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        {{ form.department(class="form-control") }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.student_id.label(class="form-label") }}
+                                    {% if form.student_id.errors %}
+                                        {{ form.student_id(class="form-control is-invalid") }}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.student_id.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        {{ form.student_id(class="form-control") }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            {{ form.bio.label(class="form-label") }}
+                            {% if form.bio.errors %}
+                                {{ form.bio(class="form-control is-invalid", rows=4) }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.bio.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.bio(class="form-control", rows=4) }}
+                            {% endif %}
+                            <small class="form-text text-muted">Write a short bio about yourself (optional)</small>
+                        </div>
+                        
+                        <div class="form-group mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <img src="{{ url_for('static', filename='profile_pics/' + (current_user.profile_image or 'default.jpg')) }}" 
+                                    alt="Current Profile Picture" class="rounded-circle me-3" 
+                                    style="width: 100px; height: 100px; object-fit: cover;">
+                                <div>
+                                    {{ form.profile_image.label(class="form-label") }}
+                                    {{ form.profile_image(class="form-control") }}
+                                    {% if form.profile_image.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.profile_image.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">Accepted formats: JPG, JPEG, PNG</small>
+                        </div>
+                        
+                        <hr class="my-4">
+                        <h5 class="mb-3">Change Password</h5>
+                        <p class="text-muted small mb-3">Leave these fields blank if you don't want to change your password</p>
+                        
+                        <div class="form-group mb-3">
+                            {{ form.current_password.label(class="form-label") }}
+                            {% if form.current_password.errors %}
+                                {{ form.current_password(class="form-control is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.current_password.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.current_password(class="form-control") }}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.new_password.label(class="form-label") }}
+                                    {% if form.new_password.errors %}
+                                        {{ form.new_password(class="form-control is-invalid") }}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.new_password.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        {{ form.new_password(class="form-control") }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.confirm_password.label(class="form-label") }}
+                                    {% if form.confirm_password.errors %}
+                                        {{ form.confirm_password(class="form-control is-invalid") }}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.confirm_password.errors %}
+                                                <span>{{ error }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        {{ form.confirm_password(class="form-control") }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mt-4">
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                                <a href="{{ url_for('auth.profile') }}" class="btn btn-secondary">Cancel</a>
+                                {{ form.submit(class="btn btn-primary") }}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

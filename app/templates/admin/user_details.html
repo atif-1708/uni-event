@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h2 class="card-title mb-0">User Profile: {{ user.username }}</h2>
+                <div>
+                    <a href="{{ url_for('admin.users') }}" class="btn btn-light btn-sm me-2">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Users
+                    </a>
+                    {% if user.id != current_user.id %}
+                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteUserModal">
+                        <i class="fas fa-trash me-1"></i>Delete User
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <div class="row">
+                    <!-- User Profile Card -->
+                    <div class="col-md-4">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0"><i class="fas fa-user-circle me-2"></i>Profile Information</h5>
+                            </div>
+                            <div class="card-body text-center">
+                                <img src="{{ url_for('static', filename='profile_pics/' + (user.profile_image or 'default.jpg')) }}" 
+                                     alt="{{ user.username }}'s profile" 
+                                     class="img-fluid rounded-circle mb-3" 
+                                     style="width: 150px; height: 150px; object-fit: cover;">
+                                <h4>{{ user.full_name or user.username }}</h4>
+                                <p class="text-muted">
+                                    {% if user.role == 'admin' %}
+                                        <span class="badge bg-danger rounded-pill">Administrator</span>
+                                    {% else %}
+                                        <span class="badge bg-primary rounded-pill">Student</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item">
+                                    <i class="fas fa-id-card me-2 text-primary"></i>
+                                    <strong>Username:</strong> {{ user.username }}
+                                </li>
+                                <li class="list-group-item">
+                                    <i class="fas fa-envelope me-2 text-primary"></i>
+                                    <strong>Email:</strong> {{ user.email }}
+                                </li>
+                                {% if user.student_id %}
+                                    <li class="list-group-item">
+                                        <i class="fas fa-id-badge me-2 text-primary"></i>
+                                        <strong>Student ID:</strong> {{ user.student_id }}
+                                    </li>
+                                {% endif %}
+                                {% if user.department %}
+                                    <li class="list-group-item">
+                                        <i class="fas fa-university me-2 text-primary"></i>
+                                        <strong>Department:</strong> {{ user.department }}
+                                    </li>
+                                {% endif %}
+                                <li class="list-group-item">
+                                    <i class="fas fa-calendar-alt me-2 text-primary"></i>
+                                    <strong>Joined:</strong> {{ user.created_at.strftime('%b %d, %Y') }}
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-8">
+                        <!-- Biography Section -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Biography</h5>
+                            </div>
+                            <div class="card-body">
+                                {% if user.bio %}
+                                    <p>{{ user.bio }}</p>
+                                {% else %}
+                                    <p class="text-muted text-center">
+                                        <i class="fas fa-info-circle me-2"></i>No biography provided.
+                                    </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Recent Registrations -->
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0"><i class="fas fa-calendar-check me-2"></i>Recent Event Registrations</h5>
+                            </div>
+                            <div class="card-body">
+                                {% if registrations %}
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Event</th>
+                                                    <th>Date</th>
+                                                    <th>Registered On</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for registration in registrations %}
+                                                <tr>
+                                                    <td>
+                                                        <a href="{{ url_for('admin.event_registrations', event_id=registration.event.id) }}">
+                                                            {{ registration.event.title }}
+                                                        </a>
+                                                    </td>
+                                                    <td>{{ registration.event.date.strftime('%b %d, %Y %H:%M') }}</td>
+                                                    <td>{{ registration.registered_at.strftime('%b %d, %Y %H:%M') }}</td>
+                                                    <td>
+                                                        {% if registration.attended %}
+                                                            <span class="badge bg-success rounded-pill">Attended</span>
+                                                        {% else %}
+                                                            {% if registration.event.date > now %}
+                                                                <span class="badge bg-warning rounded-pill">Upcoming</span>
+                                                            {% else %}
+                                                                <span class="badge bg-secondary rounded-pill">Did Not Attend</span>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="text-center mt-3">
+                                        <a href="#" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-list me-1"></i>View All Registrations
+                                        </a>
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-info text-center">
+                                        <i class="fas fa-info-circle me-2"></i>No event registrations yet.
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Confirmation Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteUserModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm User Deletion
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">Are you sure you want to delete the user <strong>{{ user.username }}</strong>?</p>
+                <p class="text-danger mb-0 mt-2">
+                    <i class="fas fa-exclamation-circle me-1"></i>
+                    <strong>Warning:</strong> This action cannot be undone. All user data and registrations will be permanently removed.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Delete User
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
