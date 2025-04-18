@@ -12,7 +12,7 @@ from app.utils.helpers import admin_required
 from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, TextAreaField, IntegerField, DateTimeField, SubmitField, SelectField
 from wtforms.validators import DataRequired, Length, NumberRange
-
+from app.utils.helpers import validate_event_csv, process_event_csv
 # Create the Blueprint first
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -431,4 +431,122 @@ def export_report_csv():
         output,
         mimetype='text/csv',
         headers={'Content-Disposition': 'attachment; filename=event_report.csv'}
+    )
+
+@admin.route('/bulk-upload', methods=['GET'])
+@login_required
+def bulk_upload_view():
+    """Display the bulk upload page for events"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'danger')
+        return redirect(url_for('main.index'))
+    
+    return render_template('admin/bulk_upload.html')
+
+@admin.route('/bulk-upload', methods=['POST'])
+@login_required
+def bulk_upload_events():
+    """Handle the bulk upload of events via CSV"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'danger')
+        return redirect(url_for('main.index'))
+    
+    # Check if file was uploaded
+    if 'file' not in request.files:
+        flash('No file selected', 'danger')
+        return redirect(url_for('admin.bulk_upload_view'))
+    
+    file = request.files['file']
+    
+    # Check if file is empty
+    if file.filename == '':
+        flash('No file selected', 'danger')
+        return redirect(url_for('admin.bulk_upload_view'))
+    
+    # Validate the CSV
+    is_valid, error_message = validate_event_csv(file)
+    
+    if not is_valid:
+        flash(error_message, 'danger')
+        return redirect(url_for('admin.bulk_upload_view'))
+    
+    # Process the CSV
+    events_data = process_event_csv(file)
+    
+    # Check if any events were found
+    if not events_data:
+        flash('No events found in the CSV file', 'warning')
+        return redirect(url_for('admin.bulk_upload_view'))
+    
+    # Insert events into the database
+    try:
+        count = 0
+        for event_data in events_data:
+            # Skip if any required field is missing
+            if not all(key in event_data and event_data[key] for key in ['title', 'description', 'date', 'end_date', 'registration_deadline', 'location', 'max_participants']):
+                continue
+                
+            # Create new event object
+            new_event = Event(
+                title=event_data['title'],
+                description=event_data['description'],
+                date=event_data['date'],
+                end_date=event_data['end_date'],
+                registration_deadline=event_data['registration_deadline'],
+                location=event_data['location'],
+                max_participants=int(event_data['max_participants'])
+            )
+            
+            db.session.add(new_event)
+            count += 1
+        
+        db.session.commit()
+        flash(f'Successfully imported {count} events', 'success')
+        return redirect(url_for('admin.events'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error importing events: {str(e)}', 'danger')
+        return redirect(url_for('admin.bulk_upload_view'))
+
+@admin.route('/download-event-template', methods=['GET'])
+@login_required
+def download_event_template():
+    """Provides a CSV template for event bulk upload"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'danger')
+        return redirect(url_for('main.index'))
+    
+    from flask import send_file
+    import csv
+    from io import StringIO
+    
+    # Create a CSV template in memory
+    si = StringIO()
+    writer = csv.writer(si)
+    
+    # Write headers
+    writer.writerow(['title', 'description', 'date', 'end_date', 'registration_deadline', 
+                     'location', 'max_participants'])
+    
+    # Write a sample row
+    writer.writerow([
+        'Sample Workshop',
+        'This is a sample event description.',
+        '2025-05-01 14:00',  # Start date
+        '2025-05-01 16:00',  # End date (required)
+        '2025-04-28 23:59',  # Registration deadline (required)
+        'Main Campus, Room 101',
+        '50'
+    ])
+    
+    output = si.getvalue()
+    si.close()
+    
+    # Create a response with the CSV content
+    from flask import Response
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-disposition": "attachment; filename=event_template.csv"}
     )

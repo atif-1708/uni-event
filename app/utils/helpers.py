@@ -17,11 +17,180 @@ from reportlab.lib.units import inch, mm
 from reportlab.pdfgen import canvas
 from reportlab.graphics.shapes import Drawing, Line
 from reportlab.lib.colors import HexColor
+import csv
+from werkzeug.utils import secure_filename
 # app/utils/helpers.py
 
 from flask_login import current_user
 from flask import abort
 from functools import wraps
+
+def validate_event_csv(file_stream):
+    """
+    Validates that a CSV file has the required headers and format for event bulk upload.
+    
+    Args:
+        file_stream: The uploaded file stream
+        
+    Returns:
+        tuple: (is_valid, error_message or None)
+    """
+    required_headers = ['title', 'description', 'date', 'end_date', 'registration_deadline', 'location', 'max_participants']
+    
+    # Check file extension
+    if not file_stream.filename.endswith('.csv'):
+        return False, "Please upload a CSV file."
+    
+    # Read and validate the CSV
+    try:
+        stream = io.StringIO(file_stream.read().decode("UTF8"), newline=None)
+        file_stream.seek(0)  # Reset stream position for later use
+        
+        csv_reader = csv.reader(stream)
+        headers = next(csv_reader, None)
+        
+        if not headers:
+            return False, "The CSV file is empty."
+        
+        # Convert headers to lowercase and remove whitespace
+        headers = [h.strip().lower() for h in headers]
+        
+        # Check for required headers
+        missing_headers = [h for h in required_headers if h not in headers]
+        if missing_headers:
+            return False, f"Missing required headers: {', '.join(missing_headers)}"
+        
+        # Now validate each row format
+        valid_rows = []
+        errors = []
+        
+        for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 to account for headers
+            if len(row) != len(headers):
+                errors.append(f"Row {row_num}: Has {len(row)} columns but should have {len(headers)}")
+                continue
+                
+            row_dict = {headers[i]: value.strip() for i, value in enumerate(row)}
+            
+            # Validate date formats - try multiple common formats
+            for date_field in ['date', 'end_date', 'registration_deadline']:
+                if date_field in row_dict and row_dict[date_field]:
+                    # List of common date formats to try
+                    date_formats = [
+                        "%Y-%m-%d %H:%M",       # 2025-05-01 14:00
+                        "%Y/%m/%d %H:%M",       # 2025/05/01 14:00
+                        "%m/%d/%Y %H:%M",       # 05/01/2025 14:00
+                        "%d/%m/%Y %H:%M",       # 01/05/2025 14:00
+                        "%m-%d-%Y %H:%M",       # 05-01-2025 14:00
+                        "%d-%m-%Y %H:%M",       # 01-05-2025 14:00
+                        "%Y-%m-%d %I:%M %p",    # 2025-05-01 2:00 PM
+                        "%m/%d/%Y %I:%M %p",    # 05/01/2025 2:00 PM
+                        "%d/%m/%Y %I:%M %p",    # 01/05/2025 2:00 PM
+                        "%Y/%m/%d %I:%M %p"     # 2025/05/01 2:00 PM
+                    ]
+                    
+                    valid_date = False
+                    for fmt in date_formats:
+                        try:
+                            datetime.strptime(row_dict[date_field], fmt)
+                            valid_date = True
+                            break
+                        except ValueError:
+                            continue
+                    
+                    if not valid_date:
+                        errors.append(f"Row {row_num}: Invalid date format for {date_field}. Accepted formats include: YYYY-MM-DD HH:MM, MM/DD/YYYY HH:MM, DD/MM/YYYY HH:MM")
+            
+            # Validate numeric fields
+            if 'max_participants' in row_dict:
+                try:
+                    if row_dict['max_participants']:
+                        int(row_dict['max_participants'])
+                except ValueError:
+                    errors.append(f"Row {row_num}: max_participants must be a number")
+            
+            # Make sure title and description are not empty
+            for required_field in ['title', 'description', 'location']:
+                if not row_dict.get(required_field):
+                    errors.append(f"Row {row_num}: {required_field} cannot be empty")
+        
+        if errors:
+            return False, "CSV validation failed:<br>" + "<br>".join(errors)
+        
+        return True, None
+        
+    except Exception as e:
+        return False, f"Error processing CSV file: {str(e)}"
+
+def process_event_csv(file_stream):
+    """
+    Process a validated CSV file and convert it to a list of event dictionaries
+    
+    Args:
+        file_stream: The validated CSV file stream
+        
+    Returns:
+        list: List of dictionaries with event data
+    """
+    stream = io.StringIO(file_stream.read().decode("UTF8"), newline=None)
+    file_stream.seek(0)
+    
+    csv_reader = csv.DictReader(stream)
+    events = []
+    
+    for row in csv_reader:
+        event = {}
+        for key, value in row.items():
+            key = key.strip().lower()
+            value = value.strip() if value else None
+            
+            # Process date fields with multiple formats
+            if key in ['date', 'end_date', 'registration_deadline'] and value:
+                # Try multiple date formats
+                date_formats = [
+                    "%Y-%m-%d %H:%M",       # 2025-05-01 14:00
+                    "%Y/%m/%d %H:%M",       # 2025/05/01 14:00
+                    "%m/%d/%Y %H:%M",       # 05/01/2025 14:00
+                    "%d/%m/%Y %H:%M",       # 01/05/2025 14:00
+                    "%m-%d-%Y %H:%M",       # 05-01-2025 14:00
+                    "%d-%m-%Y %H:%M",       # 01-05-2025 14:00
+                    "%Y-%m-%d %I:%M %p",    # 2025-05-01 2:00 PM
+                    "%m/%d/%Y %I:%M %p",    # 05/01/2025 2:00 PM
+                    "%d/%m/%Y %I:%M %p",    # 01/05/2025 2:00 PM
+                    "%Y/%m/%d %I:%M %p"     # 2025/05/01 2:00 PM
+                ]
+                
+                for fmt in date_formats:
+                    try:
+                        event[key] = datetime.strptime(value, fmt)
+                        break  # Stop after finding a valid format
+                    except ValueError:
+                        continue
+            elif key == 'max_participants' and value:
+                event[key] = int(value)
+            else:
+                event[key] = value
+                
+        events.append(event)
+    
+    return events
+
+def allowed_file(filename):
+    """Check if the file extension is allowed (CSV only)"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() == 'csv'
+
+def save_csv_file(file, upload_folder='uploads'):
+    """Save the uploaded CSV file to the server"""
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+        
+    filename = secure_filename(file.filename)
+    file_path = os.path.join(upload_folder, filename)
+    file.save(file_path)
+    
+    return file_path
+
+
+
 def admin_required(f):
     """
     Decorator to ensure that the current user is an admin.
@@ -178,3 +347,4 @@ def get_event_status(event):
         return 'Half Full'
     else:
         return 'Open'
+    
