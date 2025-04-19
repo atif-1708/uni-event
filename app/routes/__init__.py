@@ -18,7 +18,11 @@ mail = Mail()
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
-    
+    # Override database URI with environment variable if set (e.g. on Render)
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+
     # Initialize extensions with the app
     db.init_app(app)
     login_manager.init_app(app)
