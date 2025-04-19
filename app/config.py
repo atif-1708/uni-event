@@ -6,7 +6,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev_key_for_development_only')
     
     # Database configuration
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI', 'sqlite:///site.db')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI', 'postgresql://event_db_mmjn_user:zZpdPTQRAakpQ9O0FG02nTFsa5YBYUPx@dpg-d01tkqngi27c73f15610-a.virginia-postgres.render.com/event_db_mmjn')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Flask-Mail configuration
