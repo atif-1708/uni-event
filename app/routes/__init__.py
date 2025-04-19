@@ -57,8 +57,4 @@ def create_app():
     app.register_blueprint(main, url_prefix='/home')
     app.register_blueprint(student, url_prefix='/student')
 
-# ✅ Run migration automatically at startup
-    from flask_migrate import upgrade as flask_migrate_upgrade
-    with app.app_context():
-        flask_migrate_upgrade()
     return app
