@@ -260,14 +260,13 @@ def register_for_event(event_id):
         event_id=event_id,
         admin_viewed=False  # Set as unviewed for admin notifications
     )
-
+   
     db.session.add(registration)
     db.session.commit()
-
-    send_registration_confirmation(current_user, event)
-
+    # Add this return statement
     flash('You have successfully registered for this event!', 'success')
-    return redirect(url_for('student.dashboard'))
+    return redirect(url_for('student.event_details', event_id=event_id))
+    
 
 # Cancel registration for event
 @student.route('/registrations/<int:registration_id>/cancel', methods=['POST'])

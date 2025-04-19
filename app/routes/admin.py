@@ -13,6 +13,18 @@ from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, TextAreaField, IntegerField, DateTimeField, SubmitField, SelectField
 from wtforms.validators import DataRequired, Length, NumberRange
 from app.utils.helpers import validate_event_csv, process_event_csv
+from flask import jsonify, request
+from flask import render_template, redirect, url_for, flash, request, jsonify, send_file, abort, current_app
+from flask_login import login_required, current_user
+from sqlalchemy import func, desc, and_, or_, extract
+from datetime import datetime, timedelta
+import io
+import csv
+from functools import wraps
+import calendar
+
+from app import db
+from app.models import Event, Registration, User
 # Create the Blueprint first
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -288,6 +300,102 @@ def export_registrations(event_id):
         headers={'Content-Disposition': f'attachment;filename=registrations_{event.title.replace(" ", "_")}.csv'}
     )
 
+@admin.route('/scan-attendance', methods=['GET'])
+@login_required
+def scan_attendance():
+    """Display the QR code scanner interface for marking attendance"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'danger')
+        return redirect(url_for('admin.dashboard'))
+    
+    return render_template('admin/scan_attendance.html')
+
+@admin.route('/mark-attendance', methods=['POST'])
+@login_required
+def mark_attendance():
+    """API endpoint to mark attendance based on scanned QR code"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        data = request.json
+        qr_content = data.get('registration_id')
+        
+        if not qr_content:
+            return jsonify({'success': False, 'message': 'Invalid QR code content'}), 400
+        
+        # Debug the received content
+        print(f"QR Code content: {qr_content}")
+        
+        # Parse the pipe-delimited format: EVENT:1|USER:4|REG:1|ID:FB23B860
+        registration_id = None
+        parts = qr_content.split('|')
+        
+        for part in parts:
+            if part.startswith('REG:'):
+                try:
+                    registration_id = int(part.split(':')[1])
+                    break
+                except (ValueError, IndexError):
+                    pass
+        
+        if not registration_id:
+            return jsonify({
+                'success': False, 
+                'message': 'Could not find registration ID in QR code'
+            }), 400
+        
+        # Find the registration
+        registration = Registration.query.get(registration_id)
+        
+        if not registration:
+            return jsonify({
+                'success': False, 
+                'message': f'Registration not found with ID: {registration_id}'
+            }), 404
+        
+        # Check if already marked as attended
+        if registration.attended:
+            # Get user and event info for the response
+            student = User.query.get(registration.user_id)
+            event = Event.query.get(registration.event_id)
+            
+            return jsonify({
+                'success': False, 
+                'message': 'Already marked as attended',
+                'student': {
+                    'name': student.full_name if hasattr(student, 'full_name') and student.full_name else student.username,
+                },
+                'event': {
+                    'title': event.title
+                }
+            }), 200
+        
+        # Mark as attended
+        registration.attended = True
+        db.session.commit()
+        
+        # Get user and event info for the response
+        student = User.query.get(registration.user_id)
+        event = Event.query.get(registration.event_id)
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Attendance marked successfully',
+            'student': {
+                'name': student.full_name if hasattr(student, 'full_name') and student.full_name else student.username,
+            },
+            'event': {
+                'title': event.title
+            }
+        })
+    
+    except Exception as e:
+        # Log the error
+        import traceback
+        print(f"Error marking attendance: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 @admin.route('/events/<int:event_id>/registrations/<int:reg_id>/toggle-attendance', methods=['POST'])
 @admin_required
 def toggle_attendance(event_id, reg_id):
@@ -395,44 +503,428 @@ def delete_user(user_id):
     flash(f'User "{username}" has been deleted successfully.', 'success')
     return redirect(url_for('admin.users'))
 
+# Reports routes
 @admin.route('/reports')
+@login_required
 @admin_required
 def reports():
-    events = Event.query.order_by(Event.date.desc()).all()
-    top_events = sorted(events, key=lambda e: e.registration_count, reverse=True)[:3]
-    now = datetime.utcnow() 
-     # Make sure each event has a title and registration_count
+    """Generate analytics reports for events"""
+    # Get filter parameters
+    date_range = request.args.get('date_range', 'all')
+    status = request.args.get('status', 'all')
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    
+    # Process date range
+    start_date = None
+    end_date = None
+    today = datetime.utcnow().date()
+    
+    if date_range == 'thisMonth':
+        start_date = datetime(today.year, today.month, 1)
+        # Get last day of current month
+        last_day = calendar.monthrange(today.year, today.month)[1]
+        end_date = datetime(today.year, today.month, last_day, 23, 59, 59)
+    elif date_range == 'lastMonth':
+        # Get first day of previous month
+        if today.month == 1:
+            start_date = datetime(today.year - 1, 12, 1)
+            end_date = datetime(today.year, 1, 1) - timedelta(seconds=1)
+        else:
+            start_date = datetime(today.year, today.month - 1, 1)
+            last_day = calendar.monthrange(today.year, today.month - 1)[1]
+            end_date = datetime(today.year, today.month - 1, last_day, 23, 59, 59)
+    elif date_range == 'thisYear':
+        start_date = datetime(today.year, 1, 1)
+        end_date = datetime(today.year, 12, 31, 23, 59, 59)
+    elif date_range == 'custom' and start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            end_date = end_date.replace(hour=23, minute=59, second=59)
+        except ValueError:
+            flash('Invalid date format. Please use YYYY-MM-DD format.', 'warning')
+    
+    # Build query filters
+    filters = []
+    
+    if start_date and end_date:
+        filters.append(Event.date >= start_date)
+        filters.append(Event.date <= end_date)
+    
+    if status != 'all':
+        today_datetime = datetime.utcnow()
+        if status == 'upcoming':
+            filters.append(Event.date > today_datetime)
+        elif status == 'ongoing':
+            filters.append(Event.date <= today_datetime)
+            filters.append(or_(Event.end_date == None, Event.end_date > today_datetime))
+        elif status == 'ended':
+            filters.append(Event.end_date <= today_datetime)
+    
+    # Apply filters to query
+    query = Event.query
+    if filters:
+        query = query.filter(*filters)
+    
+    # Get all events based on filters
+    events = query.all()
+    
+    # Get top events by registration count
+    top_events = sorted(events, key=lambda e: e.registration_count, reverse=True)[:5]
+    
+    # Get top events by attendance rate (attended / registered)
+    top_attendance_events = []
     for event in events:
-        if not hasattr(event, 'registration_count') or event.registration_count is None:
-            event.registration_count = 0
-    return render_template('admin/reports.html', title='Reports', events=events, top_events=top_events)
+        total_registered = event.registration_count
+        if total_registered > 0:  # Avoid division by zero
+            # Count attended registrations
+            attended_count = Registration.query.filter_by(
+                event_id=event.id, 
+                attended=True
+            ).count()
+            
+            # Add to event object for use in template
+            event.attended_count = attended_count
+            
+            # Add to top attendance events if it has some attendance
+            if attended_count > 0:
+                top_attendance_events.append(event)
+    
+    # Sort by attendance rate
+    top_attendance_events = sorted(
+        top_attendance_events, 
+        key=lambda e: (e.attended_count / e.registration_count), 
+        reverse=True
+    )[:5]
+    
+    # Calculate summary statistics
+    total_events = len(events)
+    total_registrations = sum(event.registration_count for event in events)
+    total_attended = sum(getattr(event, 'attended_count', 0) for event in events)
+    
+    attendance_rate = 0
+    if total_registrations > 0:
+        attendance_rate = round((total_attended / total_registrations) * 100)
+    
+    avg_capacity = 0
+    if total_events > 0:
+        total_capacity_percentage = sum(
+            min(event.registration_count / event.max_participants * 100, 100) 
+            for event in events
+        )
+        avg_capacity = round(total_capacity_percentage / total_events)
+    
+    # Get registration trends data
+    trend_dates = []
+    registration_trends = []
+    
+    if start_date and end_date:
+        # Group by date and count registrations for trend chart
+        trend_query = db.session.query(
+            func.date(Registration.registered_at).label('date'),
+            func.count(Registration.id).label('count')
+        ).join(Event).filter(
+            Registration.event_id == Event.id
+        )
+        
+        if filters:
+            trend_query = trend_query.filter(*filters)
+        
+        trend_query = trend_query.group_by(
+            func.date(Registration.registered_at)
+        ).order_by(
+            func.date(Registration.registered_at)
+        ).all()
+        
+        # Format for chart.js
+        for date, count in trend_query:
+            trend_dates.append(date.strftime('%Y-%m-%d'))
+            registration_trends.append(count)
+    
+    return render_template('admin/reports.html',
+                          events=events,
+                          top_events=top_events,
+                          top_attendance_events=top_attendance_events,
+                          total_events=total_events,
+                          total_registrations=total_registrations,
+                          total_attended=total_attended,
+                          attendance_rate=attendance_rate,
+                          avg_capacity=avg_capacity,
+                          trend_dates=trend_dates,
+                          registration_trends=registration_trends,
+                          date_range=date_range,
+                          status=status,
+                          start_date=start_date_str,
+                          end_date=end_date_str)
 
-@admin.route('/reports/export')
+@admin.route('/reports/export-csv')
+@login_required
 @admin_required
 def export_report_csv():
-    events = Event.query.order_by(Event.date.desc()).all()
+    """Export event report data as CSV"""
+    # Get all events
+    events = Event.query.all()
+    
+    if not events:
+        flash('No event data available to export.', 'warning')
+        return redirect(url_for('admin.reports'))
+    
+    # Create CSV in memory
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Event Title', 'Start Date', 'End Date', 'Reg Deadline', 'Location', 'Registered', 'Capacity'])
-
+    
+    # Write header
+    writer.writerow([
+        'Event ID', 'Title', 'Description', 'Date', 'End Date', 
+        'Registration Deadline', 'Location', 'Max Participants',
+        'Registered Count', 'Attended Count', 'Status'
+    ])
+    
+    # Write data
     for event in events:
+        # Get attended count
+        attended_count = Registration.query.filter_by(
+            event_id=event.id, 
+            attended=True
+        ).count()
+        
         writer.writerow([
+            event.id,
             event.title,
-            event.date.strftime('%Y-%m-%d %H:%M'),
-            event.end_date.strftime('%Y-%m-%d %H:%M') if event.end_date else 'N/A',
-            event.registration_deadline.strftime('%Y-%m-%d %H:%M') if event.registration_deadline else 'N/A',
+            event.description[:100] + '...' if len(event.description) > 100 else event.description,
+            event.date.strftime('%Y-%m-%d %H:%M:%S'),
+            event.end_date.strftime('%Y-%m-%d %H:%M:%S') if event.end_date else 'N/A',
+            event.registration_deadline.strftime('%Y-%m-%d %H:%M:%S') if event.registration_deadline else 'N/A',
             event.location,
+            event.max_participants,
             event.registration_count,
-            event.max_participants
+            attended_count,
+            event.status
         ])
-
+    
+    # Prepare response
     output.seek(0)
-    return Response(
-        output,
+    now = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    filename = f"event_report_{now}.csv"
+    
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8')),
         mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=event_report.csv'}
+        as_attachment=True,
+        download_name=filename
     )
 
+@admin.route('/reports/export-pdf')
+@login_required
+@admin_required
+def export_report_pdf():
+    """Export event report data as PDF"""
+    try:
+        # Try to import PDF generation libraries
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib import colors
+    except ImportError:
+        flash('PDF export requires ReportLab library. Please install it: pip install reportlab', 'warning')
+        return redirect(url_for('admin.reports'))
+    
+    # Get all events
+    events = Event.query.all()
+    
+    if not events:
+        flash('No event data available to export.', 'warning')
+        return redirect(url_for('admin.reports'))
+    
+    # Create PDF in memory
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    
+    # Prepare document content
+    elements = []
+    
+    # Title
+    title = Paragraph("University Event Management System - Event Report", styles['Title'])
+    elements.append(title)
+    elements.append(Spacer(1, 12))
+    
+    # Date generated
+    date_text = Paragraph(f"Generated on: {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}", styles['Normal'])
+    elements.append(date_text)
+    elements.append(Spacer(1, 12))
+    
+    # Summary statistics
+    total_events = len(events)
+    total_registrations = sum(event.registration_count for event in events)
+    total_attended = Registration.query.filter_by(attended=True).count()
+    
+    summary_data = [
+        ["Total Events", str(total_events)],
+        ["Total Registrations", str(total_registrations)],
+        ["Total Attended", str(total_attended)],
+        ["Attendance Rate", f"{round((total_attended / total_registrations) * 100) if total_registrations > 0 else 0}%"]
+    ]
+    
+    summary_table = Table(summary_data, colWidths=[200, 100])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    
+    elements.append(Paragraph("Summary Statistics", styles['Heading2']))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 20))
+    
+    # Top events table
+    top_events = sorted(events, key=lambda e: e.registration_count, reverse=True)[:5]
+    
+    elements.append(Paragraph("Top 5 Events by Registration", styles['Heading2']))
+    if top_events:
+        top_data = [["Event Title", "Date", "Location", "Registrations", "Capacity"]]
+        
+        for event in top_events:
+            top_data.append([
+                event.title,
+                event.date.strftime('%Y-%m-%d'),
+                event.location,
+                str(event.registration_count),
+                f"{event.registration_count}/{event.max_participants}"
+            ])
+        
+        top_table = Table(top_data, colWidths=[150, 80, 100, 80, 80])
+        top_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        elements.append(top_table)
+    else:
+        elements.append(Paragraph("No event data available", styles['Normal']))
+    
+    elements.append(Spacer(1, 20))
+    
+    # All events table
+    elements.append(Paragraph("All Events", styles['Heading2']))
+    
+    event_data = [["Title", "Date", "Location", "Registrations", "Status"]]
+    
+    for event in events:
+        event_data.append([
+            event.title,
+            event.date.strftime('%Y-%m-%d'),
+            event.location,
+            str(event.registration_count),
+            event.status
+        ])
+    
+    event_table = Table(event_data, colWidths=[150, 80, 100, 80, 80])
+    event_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    
+    elements.append(event_table)
+    
+    # Build PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    # Prepare response
+    now = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    filename = f"event_report_{now}.pdf"
+    
+    return send_file(
+        buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
+
+@admin.route('/api/event-stats')
+@login_required
+@admin_required
+def event_stats_api():
+    """API endpoint to get event statistics for AJAX requests"""
+    # Get filter parameters
+    date_range = request.args.get('date_range', 'all')
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    
+    # Process date range
+    start_date = None
+    end_date = None
+    today = datetime.utcnow().date()
+    
+    if date_range == 'thisMonth':
+        start_date = datetime(today.year, today.month, 1)
+        last_day = calendar.monthrange(today.year, today.month)[1]
+        end_date = datetime(today.year, today.month, last_day, 23, 59, 59)
+    elif date_range == 'lastMonth':
+        if today.month == 1:
+            start_date = datetime(today.year - 1, 12, 1)
+            end_date = datetime(today.year, 1, 1) - timedelta(seconds=1)
+        else:
+            start_date = datetime(today.year, today.month - 1, 1)
+            last_day = calendar.monthrange(today.year, today.month - 1)[1]
+            end_date = datetime(today.year, today.month - 1, last_day, 23, 59, 59)
+    elif date_range == 'thisYear':
+        start_date = datetime(today.year, 1, 1)
+        end_date = datetime(today.year, 12, 31, 23, 59, 59)
+    elif date_range == 'custom' and start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            end_date = end_date.replace(hour=23, minute=59, second=59)
+        except ValueError:
+            return jsonify({'error': 'Invalid date format'}), 400
+    
+    # Build query filters
+    filters = []
+    
+    if start_date and end_date:
+        filters.append(Event.date >= start_date)
+        filters.append(Event.date <= end_date)
+    
+    # Apply filters to query
+    registration_query = db.session.query(
+        func.date(Registration.registered_at).label('date'),
+        func.count(Registration.id).label('count')
+    )
+    
+    if filters:
+        registration_query = registration_query.join(Event).filter(*filters)
+    
+    registration_data = registration_query.group_by(
+        func.date(Registration.registered_at)
+    ).order_by(
+        func.date(Registration.registered_at)
+    ).all()
+    
+    # Format for chart.js
+    dates = [date.strftime('%Y-%m-%d') for date, _ in registration_data]
+    counts = [count for _, count in registration_data]
+    
+    return jsonify({
+        'dates': dates,
+        'counts': counts
+    })
 @admin.route('/bulk-upload', methods=['GET'])
 @login_required
 def bulk_upload_view():

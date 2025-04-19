@@ -1,18 +1,24 @@
-EVENT REGISTRATION CONFIRMATION
+Welcome to University Event Management System!
 
-Hello {{ user.username }},
+Hello {% if user.full_name %}{{ user.full_name }}{% else %}{{ user.username }}{% endif %},
 
-Thank you for registering for the following event:
+Thank you for registering with the University Event Management System. Your account has been successfully created.
 
-EVENT: {{ event.title }}
-DATE: {{ event.date.strftime('%B %d, %Y at %I:%M %p') }}
-LOCATION: {{ event.location }}
+Your account details:
+- Username: {{ user.username }}
+- Email: {{ user.email }}
+{% if user.student_id %}- Student ID: {{ user.student_id }}{% endif %}
+{% if user.department %}- Department: {{ user.department }}{% endif %}
 
-You have successfully secured your spot. Please arrive at least 15 minutes before the event starts.
+You can now log in and explore upcoming events, register for events that interest you, and manage your registrations.
 
-If you need to cancel your registration, you can do so from your dashboard on the University Event System website:
-{{ url_for('student.dashboard', _external=True) }}
+To log in, please visit: {{ url_for('auth.login', _external=True) }}
 
----------------------------
+If you have any questions or need assistance, please don't hesitate to contact our support team.
+
+Best regards,
+University Event Management Team
+
+---
 This is an automated message. Please do not reply to this email.
-© {{ event.date.year }} University Event System. All rights reserved.
+© {{ now.year }} University Event Management System. All rights reserved.

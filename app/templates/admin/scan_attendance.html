@@ -1,0 +1,302 @@
+<!-- templates/admin/scan_attendance.html -->
+{% extends "base.html" %}
+
+{% block title %}Scan Attendance{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Scan Attendance QR Code</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Tab navigation -->
+                    <ul class="nav nav-tabs mb-3" id="scanTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="camera-tab" data-bs-toggle="tab" data-bs-target="#camera" type="button" role="tab">
+                                <i class="fas fa-camera"></i> Camera Scan
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" type="button" role="tab">
+                                <i class="fas fa-upload"></i> Upload Image
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <!-- Tab content -->
+                    <div class="tab-content" id="scanTabsContent">
+                        <!-- Camera scanner tab -->
+                        <div class="tab-pane fade show active" id="camera" role="tabpanel">
+                            <div class="text-center mb-4">
+                                <div id="scanner-container">
+                                    <video id="scanner" class="img-fluid border"></video>
+                                </div>
+                                <div class="mt-3">
+                                    <button id="start-button" class="btn btn-success">
+                                        <i class="fas fa-camera"></i> Start Scanner
+                                    </button>
+                                    <button id="stop-button" class="btn btn-danger" style="display:none;">
+                                        <i class="fas fa-stop"></i> Stop Scanner
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Upload image tab -->
+                        <div class="tab-pane fade" id="upload" role="tabpanel">
+                            <div class="text-center mb-4">
+                                <div class="mb-3">
+                                    <label for="qr-file" class="form-label">Upload QR Code Image</label>
+                                    <input class="form-control" type="file" id="qr-file" accept="image/*">
+                                </div>
+                                <div id="file-preview" class="mt-3" style="display: none;">
+                                    <img id="preview-image" class="img-fluid border" style="max-height: 300px;">
+                                </div>
+                                <div class="mt-3">
+                                    <button id="scan-file-button" class="btn btn-primary" disabled>
+                                        <i class="fas fa-search"></i> Scan Image
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Results area (common to both tabs) -->
+                    <div id="result-container" class="alert alert-success" style="display:none;">
+                        <div class="d-flex align-items-center">
+                            <div>
+                                <i class="fas fa-check-circle fa-2x me-3"></i>
+                            </div>
+                            <div>
+                                <h5 id="result-title" class="mb-1">Attendance Marked</h5>
+                                <div id="result-message"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="error-container" class="alert alert-danger" style="display:none;">
+                        <div class="d-flex align-items-center">
+                            <div>
+                                <i class="fas fa-exclamation-circle fa-2x me-3"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-1">Error</h5>
+                                <div id="error-message"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Instructions</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Option 1: Scan using camera</strong></p>
+                    <ol>
+                        <li>Click the "Start Scanner" button to activate your camera</li>
+                        <li>Point the camera at a student's event pass QR code</li>
+                        <li>The system will automatically detect and process the code</li>
+                    </ol>
+                    
+                    <p class="mt-3"><strong>Option 2: Upload QR code image</strong></p>
+                    <ol>
+                        <li>Switch to the "Upload Image" tab</li>
+                        <li>Select a QR code image from your device</li>
+                        <li>Click "Scan Image" to process the uploaded QR code</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Include the QR scanner libraries -->
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Camera scanning elements
+        const scanner = document.getElementById('scanner');
+        const startButton = document.getElementById('start-button');
+        const stopButton = document.getElementById('stop-button');
+        
+        // File upload elements
+        const qrFileInput = document.getElementById('qr-file');
+        const filePreview = document.getElementById('file-preview');
+        const previewImage = document.getElementById('preview-image');
+        const scanFileButton = document.getElementById('scan-file-button');
+        
+        // Result elements
+        const resultContainer = document.getElementById('result-container');
+        const resultMessage = document.getElementById('result-message');
+        const resultTitle = document.getElementById('result-title');
+        const errorContainer = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+        
+        let html5QrCode;
+        
+        // Camera scanning
+        startButton.addEventListener('click', function() {
+            startScanner();
+            startButton.style.display = 'none';
+            stopButton.style.display = 'inline-block';
+        });
+        
+        stopButton.addEventListener('click', function() {
+            stopScanner();
+            stopButton.style.display = 'none';
+            startButton.style.display = 'inline-block';
+        });
+        
+        function startScanner() {
+            html5QrCode = new Html5Qrcode("scanner-container");
+            
+            html5QrCode.start(
+                { facingMode: "environment" }, // Use rear camera if available
+                {
+                    fps: 10,
+                    qrbox: 250
+                },
+                onScanSuccess,
+                onScanFailure
+            );
+        }
+        
+        function stopScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().catch(error => {
+                    console.error('Error stopping scanner:', error);
+                });
+            }
+        }
+        
+        function onScanSuccess(decodedText, decodedResult) {
+            // Temporarily stop scanning while processing this code
+            html5QrCode.pause();
+            
+            // Process the QR code
+            processQRCode(decodedText);
+        }
+        
+        function onScanFailure(error) {
+            // Handle scan failures (usually just ignore them)
+            console.warn(`QR code scan error: ${error}`);
+        }
+        
+        // File upload handling
+        qrFileInput.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                
+                // Show image preview
+                previewImage.src = URL.createObjectURL(file);
+                filePreview.style.display = 'block';
+                scanFileButton.disabled = false;
+            } else {
+                filePreview.style.display = 'none';
+                scanFileButton.disabled = true;
+            }
+        });
+        
+        scanFileButton.addEventListener('click', function() {
+            scanFileButton.disabled = true;
+            
+            // Use the same library to scan the uploaded image
+            const html5QrCodeScanner = new Html5Qrcode("file-preview", { formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ] });
+            
+            const file = qrFileInput.files[0];
+            if (!file) {
+                showError("Please select a file first");
+                scanFileButton.disabled = false;
+                return;
+            }
+            
+            html5QrCodeScanner.scanFile(file, true)
+                .then(decodedText => {
+                    // QR Code scanned successfully
+                    processQRCode(decodedText);
+                })
+                .catch(err => {
+                    showError("Could not detect a QR code in this image. Please try again with a clearer image.");
+                    console.error("Error scanning file:", err);
+                    scanFileButton.disabled = false;
+                });
+        });
+        
+        // Common processing function for both scanning methods
+        function processQRCode(content) {
+            fetch('{{ url_for("admin.mark_attendance") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    registration_id: content
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess(data);
+                } else {
+                    showError(data.message);
+                }
+                
+                // Re-enable scan file button
+                scanFileButton.disabled = false;
+                
+                // Resume camera scanning after 3 seconds if active
+                setTimeout(() => {
+                    if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.PAUSED) {
+                        html5QrCode.resume();
+                    }
+                }, 3000);
+            })
+            .catch(error => {
+                showError('Error: ' + error);
+                scanFileButton.disabled = false;
+                
+                // Resume camera scanning after error
+                setTimeout(() => {
+                    if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.PAUSED) {
+                        html5QrCode.resume();
+                    }
+                }, 3000);
+            });
+        }
+        
+        function showSuccess(data) {
+            errorContainer.style.display = 'none';
+            resultContainer.style.display = 'block';
+            resultTitle.textContent = 'Attendance Marked!';
+            resultMessage.innerHTML = `
+                <strong>Student:</strong> ${data.student.name}<br>
+                <strong>Event:</strong> ${data.event.title}<br>
+                <strong>Time:</strong> ${new Date().toLocaleTimeString()}
+            `;
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                resultContainer.style.display = 'none';
+            }, 5000);
+        }
+        
+        function showError(message) {
+            resultContainer.style.display = 'none';
+            errorContainer.style.display = 'block';
+            errorMessage.textContent = message;
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                errorContainer.style.display = 'none';
+            }, 5000);
+        }
+    });
+</script>
+{% endblock %}

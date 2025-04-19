@@ -1,100 +1,415 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-12 mb-3 d-flex justify-content-between align-items-center">
-        <h2 class="mb-0">Event Reports</h2>
-        <a href="{{ url_for('admin.export_report_csv') }}" class="btn btn-outline-primary">
-            <i class="fas fa-download me-1"></i> Export CSV
-        </a>
+<div class="container-fluid mt-4">
+    <!-- Dashboard Header -->
+    <div class="row mb-4">
+        <div class="col-md-12 d-flex justify-content-between align-items-center">
+            <h2 class="mb-0"><i class="fas fa-chart-line me-2"></i>Event Analytics Dashboard</h2>
+            <div>
+                <a href="{{ url_for('admin.export_report_csv') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-file-csv me-1"></i> Export CSV
+                </a>
+                <a href="{{ url_for('admin.export_report_pdf') }}" class="btn btn-outline-secondary ms-2">
+                    <i class="fas fa-file-pdf me-1"></i> Export PDF
+                </a>
+            </div>
+        </div>
     </div>
-</div>
-{% if top_events %}
-<div class="card mb-4 shadow-sm">
-    <div class="card-header bg-success text-white">
-        <strong><i class="fas fa-trophy me-1"></i> Top 3 Most Registered Events</strong>
-    </div>
-    <div class="card-body">
-        <ol class="list-group list-group-numbered">
-            {% for event in top_events %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>{{ event.title }}</strong>
-                    <br>
-                    <small class="text-muted">{{ event.date.strftime('%b %d, %Y') }} | {{ event.location }}</small>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Report Filters</h5>
                 </div>
-                <span class="badge bg-primary rounded-pill">{{ event.registration_count }}</span>
-            </li>
-            {% endfor %}
-        </ol>
+                <div class="card-body">
+                    <form id="reportFilters" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Date Range</label>
+                            <select class="form-select" id="dateRange" name="date_range">
+                                <option value="all" {% if date_range == 'all' %}selected{% endif %}>All Time</option>
+                                <option value="thisMonth" {% if date_range == 'thisMonth' %}selected{% endif %}>This Month</option>
+                                <option value="lastMonth" {% if date_range == 'lastMonth' %}selected{% endif %}>Last Month</option>
+                                <option value="thisYear" {% if date_range == 'thisYear' %}selected{% endif %}>This Year</option>
+                                <option value="custom" {% if date_range == 'custom' %}selected{% endif %}>Custom Range</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3 custom-date {% if date_range != 'custom' %}d-none{% endif %}">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="startDate" name="start_date" value="{{ start_date }}">
+                        </div>
+                        
+                        <div class="col-md-3 custom-date {% if date_range != 'custom' %}d-none{% endif %}">
+                            <label class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="endDate" name="end_date" value="{{ end_date }}">
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" id="eventStatus" name="status">
+                                <option value="all" {% if status == 'all' %}selected{% endif %}>All Events</option>
+                                <option value="upcoming" {% if status == 'upcoming' %}selected{% endif %}>Upcoming</option>
+                                <option value="ongoing" {% if status == 'ongoing' %}selected{% endif %}>Ongoing</option>
+                                <option value="ended" {% if status == 'ended' %}selected{% endif %}>Ended</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-12 text-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-sync-alt me-1"></i> Update Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
-{% endif %}
 
-{% if events %}
-
-
-<div class="card shadow-sm">
-    <div class="card-header bg-primary text-white">
-        <strong>Event Table</strong>
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-uppercase fw-bold mb-1">Total Events</h6>
+                            <h2 class="display-6 mb-0">{{ total_events }}</h2>
+                        </div>
+                        <div class="fs-1 opacity-75">
+                            <i class="fas fa-calendar-day"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-success text-white shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-uppercase fw-bold mb-1">Total Registrations</h6>
+                            <h2 class="display-6 mb-0">{{ total_registrations }}</h2>
+                        </div>
+                        <div class="fs-1 opacity-75">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-uppercase fw-bold mb-1">Attendance Rate</h6>
+                            <h2 class="display-6 mb-0">{{ attendance_rate }}%</h2>
+                        </div>
+                        <div class="fs-1 opacity-75">
+                            <i class="fas fa-clipboard-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="text-uppercase fw-bold mb-1">Avg Capacity Filled</h6>
+                            <h2 class="display-6 mb-0">{{ avg_capacity }}%</h2>
+                        </div>
+                        <div class="fs-1 opacity-75">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>#</th>
-                        <th>Title</th>
-                        <th>Date</th>
-                        <th>Location</th>
-                        <th>Registered</th>
-                        <th>Capacity</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for event in events %}
-                    <tr>
-                        <td>{{ loop.index }}</td>
-                        <td>{{ event.title }}</td>
-                        <td>{{ event.date.strftime('%b %d, %Y at %I:%M %p') }}</td>
-                        <td>{{ event.location }}</td>
-                        <td>
-                            <span class="badge rounded-pill 
-                                {% if event.is_full %}bg-danger
-                                {% elif event.registration_count > event.max_participants * 0.8 %}bg-warning text-dark
-                                {% else %}bg-success
-                                {% endif %}">
-                                {{ event.registration_count }}
-                            </span>
-                        </td>
-                        <td>{{ event.max_participants }}</td>
-                        <td>
-                            {% if event.is_full %}
-                                <span class="badge bg-danger">Full</span>
-                            {% elif event.registration_count >= (event.max_participants * 0.75) %}
-                                <span class="badge bg-warning text-dark">Almost Full</span>
-                            {% else %}
-                                <span class="badge bg-success">Available</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+    
+    <!-- Top Events & Recent -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Top Events by Registration</h5>
+                </div>
+                <div class="card-body">
+                    {% if top_events %}
+                    <ol class="list-group list-group-numbered">
+                        {% for event in top_events %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ event.title }}</strong>
+                                <br>
+                                <small class="text-muted">{{ event.date.strftime('%b %d, %Y') }} | {{ event.location }}</small>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <div class="me-3 text-end">
+                                    <span class="d-block">{{ event.registration_count }} / {{ event.max_participants }}</span>
+                                    <small class="text-muted">{{ ((event.registration_count / event.max_participants) * 100)|round|int }}% filled</small>
+                                </div>
+                                <div class="progress" style="width: 100px; height: 10px;">
+                                    <div class="progress-bar bg-success" role="progressbar" 
+                                        style="width: {{ ((event.registration_count / event.max_participants) * 100)|round|int }}%" 
+                                        aria-valuenow="{{ ((event.registration_count / event.max_participants) * 100)|round|int }}" 
+                                        aria-valuemin="0" 
+                                        aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ol>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>No event data available.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-star me-2"></i>Top Events by Attendance Rate</h5>
+                </div>
+                <div class="card-body">
+                    {% if top_attendance_events %}
+                    <ol class="list-group list-group-numbered">
+                        {% for event in top_attendance_events %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ event.title }}</strong>
+                                <br>
+                                <small class="text-muted">{{ event.date.strftime('%b %d, %Y') }} | {{ event.location }}</small>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <div class="me-3 text-end">
+                                    <span class="d-block">{{ event.attended_count }} / {{ event.registration_count }}</span>
+                                    <small class="text-muted">{{ ((event.attended_count / event.registration_count) * 100)|round|int }}% attended</small>
+                                </div>
+                                <div class="progress" style="width: 100px; height: 10px;">
+                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                        style="width: {{ ((event.attended_count / event.registration_count) * 100)|round|int }}%" 
+                                        aria-valuenow="{{ ((event.attended_count / event.registration_count) * 100)|round|int }}" 
+                                        aria-valuemin="0" 
+                                        aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ol>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>No attendance data available.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Events Table -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Event Details</h5>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleTableColumns">
+                        <i class="fas fa-columns me-1"></i> Toggle Columns
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if events %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover align-middle" id="eventsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Title</th>
+                                    <th>Date</th>
+                                    <th class="optional-column">End Date</th>
+                                    <th>Location</th>
+                                    <th>Registrations</th>
+                                    <th class="optional-column">Attended</th>
+                                    <th>Capacity</th>
+                                    <th class="optional-column">Attendance Rate</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in events %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>{{ event.title }}</td>
+                                    <td>{{ event.date.strftime('%b %d, %Y at %I:%M %p') }}</td>
+                                    <td class="optional-column">{{ event.end_date.strftime('%b %d, %Y at %I:%M %p') if event.end_date else 'N/A' }}</td>
+                                    <td>{{ event.location }}</td>
+                                    <td>
+                                        <span class="badge rounded-pill 
+                                            {% if event.is_full %}bg-danger
+                                            {% elif event.registration_count > event.max_participants * 0.8 %}bg-warning text-dark
+                                            {% else %}bg-success
+                                            {% endif %}">
+                                            {{ event.registration_count }}
+                                        </span>
+                                    </td>
+                                    <td class="optional-column">{{ event.attended_count|default(0) }}</td>
+                                    <td>{{ event.max_participants }}</td>
+                                    <td class="optional-column">
+                                        {% if event.registration_count > 0 %}
+                                            {{ ((event.attended_count|default(0) / event.registration_count) * 100)|round|int }}%
+                                        {% else %}
+                                            0%
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if event.status == 'Ended' %}
+                                            <span class="badge bg-secondary">Ended</span>
+                                        {% elif event.status == 'Ongoing' %}
+                                            <span class="badge bg-primary">Ongoing</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Upcoming</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>No events available to generate report.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
-{% else %}
-<div class="alert alert-info">
-    <i class="fas fa-info-circle me-2"></i>No events available to generate report.
-</div>
-
-{% endif %}
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/chart.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle custom date range visibility
+    const dateRangeSelect = document.getElementById('dateRange');
+    const customDateFields = document.querySelectorAll('.custom-date');
+    
+    dateRangeSelect.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            customDateFields.forEach(field => field.classList.remove('d-none'));
+        } else {
+            customDateFields.forEach(field => field.classList.add('d-none'));
+        }
+    });
+    
+    // Toggle table columns
+    const toggleColumnsBtn = document.getElementById('toggleTableColumns');
+    const optionalColumns = document.querySelectorAll('.optional-column');
+    
+    toggleColumnsBtn.addEventListener('click', function() {
+        optionalColumns.forEach(column => {
+            column.classList.toggle('d-none');
+        });
+    });
+    
+    // Registration Trends Chart
+    const registrationTrendsCtx = document.getElementById('registrationTrends').getContext('2d');
+    const registrationTrendsChart = new Chart(registrationTrendsCtx, {
+        type: 'line',
+        data: {
+            labels: {{ trend_dates|tojson }},
+            datasets: [{
+                label: 'Registrations',
+                data: {{ registration_trends|tojson }},
+                backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                borderColor: 'rgba(40, 167, 69, 1)',
+                borderWidth: 2,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Registrations'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                }
+            }
+        }
+    });
+    
+    // Attendance Chart
+    const attendanceCtx = document.getElementById('attendanceChart').getContext('2d');
+    const attendanceChart = new Chart(attendanceCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Attended', 'Registered but Not Attended'],
+            datasets: [{
+                data: [{{ total_attended }}, {{ total_registrations - total_attended }}],
+                backgroundColor: [
+                    'rgba(40, 167, 69, 0.8)',
+                    'rgba(220, 53, 69, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(40, 167, 69, 1)',
+                    'rgba(220, 53, 69, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

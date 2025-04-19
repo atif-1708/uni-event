@@ -11,6 +11,7 @@ from wtforms import StringField, PasswordField, BooleanField, SubmitField, Selec
 from wtforms.validators import DataRequired, Email, EqualTo, ValidationError, Length, Optional
 import os
 import secrets
+from app.utils.email import send_account_registration_email
 
 auth = Blueprint('auth', __name__)
 
@@ -139,6 +140,16 @@ def register():
         db.session.commit()
         
         flash('Your account has been created! You can now log in.', 'success')
+        return redirect(url_for('auth.login'))
+     # Send account registration email
+        try:
+            send_account_registration_email(user)
+            flash('Your account has been created! A confirmation email has been sent to your email address.', 'success')
+        except Exception as e:
+            # Log the error but don't prevent registration
+            print(f"Failed to send registration email: {str(e)}")
+            flash('Your account has been created! You can now log in.', 'success')
+        
         return redirect(url_for('auth.login'))
     
     return render_template('auth/register.html', title='Register', form=form)
